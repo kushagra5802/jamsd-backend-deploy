@@ -1,0 +1,3 @@
+constituencyId,year,pollingStationNo,psNoAndName,parliament,constituency,mandalVillage,topNParties,others,totalNumberOfValidVotes,notaTotal,noOfTenderedVotes,winnerParty,runnerParty1,runnerParty2,topNPartiesByPercentage
+645c8ca9a987c7f7f929640d,2022,1,ghazipur,state,ghazipur district,zamania Tehsil,2,1,25000,1000,500,BSP,BSP,SP,70
+645c8d9da987c7f7f9296419,2021,2,new-delhi,centeral,janakpuri,delhi tehsil,1,2,15000,450,100,AAP,AAP,BJP,65
