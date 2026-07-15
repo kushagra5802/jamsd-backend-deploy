@@ -33,6 +33,25 @@ function normalizeKeywords(value) {
     .filter(Boolean);
 }
 
+function normalizeReviewers(value) {
+  const parsed = parseJson(value, []);
+  if (!Array.isArray(parsed)) return [];
+  return parsed.map((reviewer) => ({
+    name: String(reviewer?.name || '').trim(),
+    email: String(reviewer?.email || '').trim(),
+    affiliation: String(reviewer?.affiliation || '').trim(),
+  }));
+}
+
+function assertReviewers({ suggestedReviewers }) {
+  const completeReviewers = (suggestedReviewers || []).filter((r) => r.name && r.email && r.affiliation);
+  if (completeReviewers.length < 3) {
+    const error = new Error('Please provide 3 peer reviewer suggestions with name, email, and affiliation.');
+    error.status = 400;
+    throw error;
+  }
+}
+
 function ensureAuthorAccess(submission, user) {
   const isOwner = String(submission.correspondingAuthor) === String(user._id);
   const isStaff = ['editor', 'admin', 'superadmin'].includes(user.role);
@@ -189,6 +208,7 @@ async function createSubmission({ body, files, user }) {
   const isDraft = body.saveAsDraft === 'true' || body.status === 'draft';
   const authors = parseJson(body.authors, []);
   const declarations = parseJson(body.declarations, {});
+  const suggestedReviewers = normalizeReviewers(body.suggestedReviewers);
   if (!isDraft) {
     const required = ['articleType', 'title', 'abstract'];
     const missing = required.filter((field) => !body[field]);
@@ -202,6 +222,7 @@ async function createSubmission({ body, files, user }) {
       error.status = 400;
       throw error;
     }
+    assertReviewers({ suggestedReviewers });
   }
 
   const uploaded = await uploadSubmissionFiles(files, user._id);
@@ -223,6 +244,7 @@ async function createSubmission({ body, files, user }) {
     coverLetter: body.coverLetter,
     conflictOfInterest: body.conflictOfInterest,
     ethicalApprovalNumber: body.ethicalApprovalNumber,
+    suggestedReviewers,
     declarations,
     status: isDraft ? 'draft' : 'submitted',
     submittedAt: isDraft ? undefined : new Date(),
@@ -323,9 +345,15 @@ async function updateSubmission({ id, body, files, user }) {
   if (body.keywords !== undefined) submission.keywords = normalizeKeywords(body.keywords);
   if (body.authors !== undefined) submission.authors = parseJson(body.authors, submission.authors);
   if (body.declarations !== undefined) submission.declarations = parseJson(body.declarations, submission.declarations);
+  if (body.suggestedReviewers !== undefined) submission.suggestedReviewers = normalizeReviewers(body.suggestedReviewers);
   if (uploaded.coverPageFile) submission.coverPageFile = uploaded.coverPageFile;
   if (uploaded.manuscriptFile) submission.manuscriptFile = uploaded.manuscriptFile;
   if (uploaded.supplementaryFiles.length) submission.supplementaryFiles = uploaded.supplementaryFiles;
+
+  const willRemainDraft = previousStatus === 'draft' && body.saveAsDraft === 'true';
+  if (!willRemainDraft) {
+    assertReviewers({ suggestedReviewers: submission.suggestedReviewers });
+  }
 
   if (submission.status === 'draft' && body.saveAsDraft !== 'true') {
     submission.submissionId = submission.submissionId || await nextSubmissionId();

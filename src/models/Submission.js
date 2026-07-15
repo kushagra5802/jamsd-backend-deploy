@@ -97,6 +97,13 @@ const submissionSchema = new mongoose.Schema(
     },
     conflictOfInterest: String,
     ethicalApprovalNumber: String,
+    suggestedReviewers: [
+      {
+        name: String,
+        email: String,
+        affiliation: String,
+      },
+    ],
     revisions: [
       {
         manuscriptFile: {
