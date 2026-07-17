@@ -9,6 +9,7 @@ const submissionUpload = upload.fields([
   { name: 'manuscript', maxCount: 1 },
   { name: 'supplementary', maxCount: 5 },
 ]);
+const publishUpload = upload.fields([{ name: 'image', maxCount: 1 }]);
 
 router.use(authenticate);
 
@@ -18,7 +19,7 @@ router.get('/:id', submissionController.getSubmission);
 router.put('/:id', submissionUpload, submissionController.updateSubmission);
 router.delete('/:id', submissionController.withdrawSubmission);
 router.post('/:id/status', authorize('editor', 'admin', 'superadmin'), submissionController.updateStatus);
-router.post('/:id/publish', authorize('editor', 'admin', 'superadmin'), submissionController.publishSubmission);
+router.post('/:id/publish', authorize('editor', 'admin', 'superadmin'), publishUpload, submissionController.publishSubmission);
 router.patch('/:id/assign-issue', authorize('editor', 'admin', 'superadmin'), submissionController.assignIssue);
 
 module.exports = router;

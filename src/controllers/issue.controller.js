@@ -18,7 +18,7 @@ async function getIssue(req, res, next) {
 
 async function createIssue(req, res, next) {
   try {
-    return res.status(201).json(await issueService.createIssue(req.body));
+    return res.status(201).json(await issueService.createIssue({ body: req.body, files: req.files, user: req.user }));
   } catch (error) {
     return next(error);
   }

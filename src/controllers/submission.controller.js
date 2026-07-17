@@ -50,7 +50,7 @@ async function updateStatus(req, res, next) {
 
 async function publishSubmission(req, res, next) {
   try {
-    return res.json(await submissionService.publishSubmission({ id: req.params.id, user: req.user, body: req.body }));
+    return res.json(await submissionService.publishSubmission({ id: req.params.id, user: req.user, body: req.body, files: req.files }));
   } catch (error) {
     return next(error);
   }

@@ -475,7 +475,7 @@ async function updateStatus({ id, user, body }) {
   return { success: true, data: submission };
 }
 
-async function publishSubmission({ id, user, body }) {
+async function publishSubmission({ id, user, body, files }) {
   const { issue: issueId } = body;
 
   if (!issueId) {
@@ -511,6 +511,14 @@ async function publishSubmission({ id, user, body }) {
   }
 
   let article = await Article.findOne({ submission: submission._id });
+
+  const uploadedImages = await uploadToS3({
+    files: files?.image || [],
+    userId: user._id,
+    folder: 'jamsd/articles',
+  });
+  const image = uploadedImages[0];
+
   const articleData = {
     title: submission.title,
     abstract: submission.abstract,
@@ -526,6 +534,10 @@ async function publishSubmission({ id, user, body }) {
     pdfKey: submission.manuscriptFile?.key,
     isPublished: true,
   };
+  if (image) {
+    articleData.imageUrl = image.url || image.publicUrl;
+    articleData.imageKey = image.key;
+  }
 
   if (article) {
     Object.assign(article, articleData);

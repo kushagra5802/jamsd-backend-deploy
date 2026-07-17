@@ -56,6 +56,8 @@ const articleSchema = new mongoose.Schema(
     },
     pdfUrl: String,
     pdfKey: String,
+    imageUrl: String,
+    imageKey: String,
     isPublished: {
       type: Boolean,
       default: true,

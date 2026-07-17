@@ -93,11 +93,26 @@ async function getArticle(id) {
       const signedUrl = await getSignedUrl(s3Client, command, {
         expiresIn: 60 * 60, // 1 hour
       });
-
+      conosle.log("PDF signedUrl",signedUrl)
       // replace old pdfUrl with fresh signed URL
       article.pdfUrl = signedUrl;
     } catch (err) {
       console.error("Error generating signed URL:", err.message);
+    }
+  }
+
+  // Generate signed URL from imageKey
+  if (article.imageKey) {
+    try {
+      const signedUrl = await getSignedUrl(
+        s3Client,
+        new GetObjectCommand({ Bucket: process.env.BUCKET, Key: article.imageKey }),
+        { expiresIn: 60 * 60 }
+      );
+      conosle.log("Image signedUrl",signedUrl)
+      article.imageUrl = signedUrl;
+    } catch (err) {
+      console.error("Error generating signed image URL:", err.message);
     }
   }
 

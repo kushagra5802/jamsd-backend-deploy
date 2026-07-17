@@ -22,6 +22,7 @@ const issueSchema = new mongoose.Schema(
     title: String,
     description: String,
     coverImageUrl: String,
+    coverImageKey: String,
     publishedAt: Date,
     isPublished: {
       type: Boolean,

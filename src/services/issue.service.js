@@ -50,7 +50,7 @@ async function listIssues(query = {}) {
       path: "articles",
       match: { isPublished: true },
       select:
-        "title authors articleType abstract keywords pdfUrl pdfKey publishedAt pageRange downloads views",
+        "title authors articleType abstract keywords pdfUrl pdfKey imageUrl imageKey publishedAt pageRange downloads views",
     })
     .sort({ year: -1, volume: -1, issueNumber: -1 });
 
@@ -58,6 +58,18 @@ async function listIssues(query = {}) {
   const data = await Promise.all(
     issues.map(async (issue) => {
       const obj = issue.toObject();
+
+      if (obj.coverImageKey) {
+        try {
+          obj.coverImageUrl = await getSignedUrl(
+            s3Client,
+            new GetObjectCommand({ Bucket: process.env.BUCKET, Key: obj.coverImageKey }),
+            { expiresIn: 60 * 60 }
+          );
+        } catch (err) {
+          console.error(`Error generating signed cover image URL for issue ${obj._id}:`, err.message);
+        }
+      }
 
       if (obj.articles?.length) {
         obj.articles = await Promise.all(
@@ -88,6 +100,22 @@ async function listIssues(query = {}) {
               }
             }
 
+            if (article.imageKey) {
+              try {
+                const signedImageUrl = await getSignedUrl(
+                  s3Client,
+                  new GetObjectCommand({ Bucket: process.env.BUCKET, Key: article.imageKey }),
+                  { expiresIn: 60 * 60 }
+                );
+                article.imageUrl = signedImageUrl;
+              } catch (err) {
+                console.error(
+                  `Error generating signed image URL for article ${article._id}:`,
+                  err.message
+                );
+              }
+            }
+
             return article;
           })
         );
@@ -110,17 +138,46 @@ async function getIssue(id) {
   const issue = await Issue.findById(id).populate({
     path: 'articles',
     match: { isPublished: true },
-    select: 'title authors articleType abstract keywords pdfUrl publishedAt pageRange downloads views',
+    select: 'title authors articleType abstract keywords pdfUrl pdfKey imageUrl imageKey publishedAt pageRange downloads views',
   });
   if (!issue) {
     const error = new Error('Issue not found.');
     error.status = 404;
     throw error;
   }
+
+  if (issue.coverImageKey) {
+    try {
+      issue.coverImageUrl = await getSignedUrl(
+        s3Client,
+        new GetObjectCommand({ Bucket: process.env.BUCKET, Key: issue.coverImageKey }),
+        { expiresIn: 60 * 60 }
+      );
+    } catch (err) {
+      console.error(`Error generating signed cover image URL for issue ${issue._id}:`, err.message);
+    }
+  }
+
+  await Promise.all(
+    (issue.articles || []).map(async (article) => {
+      if (article.imageKey) {
+        try {
+          article.imageUrl = await getSignedUrl(
+            s3Client,
+            new GetObjectCommand({ Bucket: process.env.BUCKET, Key: article.imageKey }),
+            { expiresIn: 60 * 60 }
+          );
+        } catch (err) {
+          console.error(`Error generating signed image URL for article ${article._id}:`, err.message);
+        }
+      }
+    })
+  );
+
   return { success: true, data: issue };
 }
 
-async function createIssue(body) {
+async function createIssue({ body, files, user }) {
   const volume = Number(body.volume);
   const issueNumber = Number(body.issueNumber);
   const year = Number(body.year);
@@ -130,6 +187,13 @@ async function createIssue(body) {
     throw error;
   }
 
+  const uploadedImages = await uploadToS3({
+    files: files?.image || [],
+    userId: user?._id,
+    folder: 'jamsd/issues',
+  });
+  const image = uploadedImages[0];
+
   const issue = await Issue.create({
     volume,
     issueNumber,
@@ -137,7 +201,8 @@ async function createIssue(body) {
     year,
     title: body.title,
     description: body.description,
-    coverImageUrl: body.coverImageUrl,
+    coverImageUrl: image?.url || image?.publicUrl || body.coverImageUrl,
+    coverImageKey: image?.key,
     publishedAt: body.publishedAt ? new Date(body.publishedAt) : undefined,
     isPublished: body.isPublished === true || body.isPublished === 'true',
   });
